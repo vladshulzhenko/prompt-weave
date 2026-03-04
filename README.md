@@ -1,17 +1,19 @@
-# prompt-forge-ts
+# prompt-weave
 
 Composable prompt DSL for AI agents.
+
+`prompt-weave` helps you build prompts as structured parts instead of string-concatenating everything manually. You compose prompt nodes, then render them to a final string or role-based message array.
 
 ## Install
 
 ```bash
-npm install prompt-forge
+npm install prompt-weave
 ```
 
 ## Usage
 
 ```ts
-import { Prompt, System, If, Each, Bracket } from "prompt-forge-ts";
+import { Prompt, System, If, Each, Bracket } from "prompt-weave";
 
 const role = "travel assistant";
 const user = { isPremium: true };
@@ -35,6 +37,32 @@ const labeled = p.render({
   roleLabelSuffix: " ",
   wrapper: ["--- BEGIN PROMPT ---\n", "\n--- END PROMPT ---"],
 });
+```
+
+### What each helper does
+
+- `System("...")`: marks text as a `system` message.
+- `If(condition, whenTrue, whenFalse?)`: conditionally includes content.
+- `Each(items, mapper)`: transforms arrays/iterables into prompt parts.
+- `Bracket(content, left?, right?)`: wraps content with markers like `()`, `[]`, or custom tokens.
+- `Prompt([...])`: composes all parts into one renderable prompt object.
+
+### `render()` vs `toMessages()`
+
+- `render()` returns a single formatted string (good for plain text prompt APIs).
+- `toMessages()` returns structured role messages (good for chat-style APIs).
+
+Example `toMessages()` shape:
+
+```ts
+[
+  { role: "system", content: "You are a travel assistant." },
+  {
+    role: "user",
+    content:
+      "Please give detailed answers.\nHere are the tasks:\n- Plan a 3-day trip\n- Include budget options\n(Return JSON only)",
+  },
+];
 ```
 
 ### Render output example
@@ -81,3 +109,20 @@ Here are the tasks:
 - `roleLabelBrackets?: [string, string]` -> bracket pair around role labels (default `["[", "]"]`)
 - `roleLabelSuffix?: string` -> text between role label and message (default `" "`)
 - `wrapper?: [string, string]` -> wraps the entire rendered prompt
+
+## Development
+
+```bash
+npm install
+npm run typecheck
+npm test
+npm run build
+```
+
+CI runs the same checks for pushes and PRs targeting both `dev` and `main`.
+
+## Versioning and releases
+
+This package uses Changesets for semantic versioning and npm releases.
+
+Maintainer-only release notes are documented in `MAINTAINER.md` (local file, intentionally gitignored).
