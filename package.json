@@ -1,6 +1,6 @@
 {
   "name": "prompt-weave",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Composable prompt DSL for AI agents",
   "type": "module",
   "main": "./dist/index.cjs",
