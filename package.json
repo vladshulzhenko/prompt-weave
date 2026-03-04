@@ -1,5 +1,5 @@
 {
-  "name": "prompt-forge",
+  "name": "prompt-weave",
   "version": "0.1.0",
   "description": "Composable prompt DSL for AI agents",
   "type": "module",
@@ -22,6 +22,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "keywords": [
@@ -34,6 +37,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@changesets/cli": "^2.30.0",
     "tsup": "^8.3.5",
     "typescript": "^5.8.2",
     "vitest": "^2.1.8"
