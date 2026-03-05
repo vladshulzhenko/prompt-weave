@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { Bracket, Each, If, Prompt, System } from "./index";
+import {
+  Assistant,
+  Bracket,
+  Each,
+  If,
+  Join,
+  Prompt,
+  Role,
+  System,
+  Template,
+  Tool,
+  User,
+} from "./index";
 
 describe("just-prompt", () => {
   it("renders the base DSL example", () => {
@@ -79,5 +91,50 @@ describe("just-prompt", () => {
         wrapper: ["BEGIN:", ":END"],
       }),
     ).toBe("BEGIN:A\nB:END");
+  });
+
+  it("supports Role helpers for all message roles", () => {
+    const prompt = Prompt([
+      System("Policy"),
+      User("Question"),
+      Assistant("Draft answer"),
+      Tool("Tool output"),
+      Role("assistant", "Final answer"),
+    ]);
+
+    expect(prompt.toMessages()).toEqual([
+      { role: "system", content: "Policy" },
+      { role: "user", content: "Question" },
+      { role: "assistant", content: "Draft answer" },
+      { role: "tool", content: "Tool output" },
+      { role: "assistant", content: "Final answer" },
+    ]);
+  });
+
+  it("supports Join for iterable prompt parts", () => {
+    const prompt = Prompt([Join(["alpha", "beta", "gamma"], " | ")]);
+
+    expect(prompt.render()).toBe("alpha | beta | gamma");
+  });
+
+  it("supports Template tagged interpolation with prompt nodes", () => {
+    const topic = "refund policy";
+    const rules = ["Be concise", "Use bullets"];
+
+    const prompt = Prompt([
+      System("You are a support assistant."),
+      Template`Handle topic: ${topic}. ${Bracket("Return JSON only", "(", ")")}`,
+      "Rules:",
+      Join(Each(rules, (rule) => `- ${rule}`), "\n"),
+    ]);
+
+    expect(prompt.toMessages()).toEqual([
+      { role: "system", content: "You are a support assistant." },
+      {
+        role: "user",
+        content:
+          "Handle topic: refund policy. (Return JSON only)\nRules:\n- Be concise\n- Use bullets",
+      },
+    ]);
   });
 });

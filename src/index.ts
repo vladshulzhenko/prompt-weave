@@ -161,8 +161,39 @@ function mergeTokens(tokens: Token[]): PromptMessage[] {
   return messages;
 }
 
+function toText(value: PromptValue, context: ResolveContext): string {
+  return collectTokens(value, context)
+    .map((token) => token.text)
+    .join("\n");
+}
+
+function isIterableValue(value: unknown): value is Iterable<PromptValue> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Symbol.iterator in value &&
+    typeof (value as Iterable<PromptValue>)[Symbol.iterator] === "function"
+  );
+}
+
+export function Role(role: Role, content: PromptValue): PromptNode {
+  return createNode(() => roleChunk(role, content));
+}
+
 export function System(content: PromptValue): PromptNode {
-  return createNode(() => roleChunk("system", content));
+  return Role("system", content);
+}
+
+export function User(content: PromptValue): PromptNode {
+  return Role("user", content);
+}
+
+export function Assistant(content: PromptValue): PromptNode {
+  return Role("assistant", content);
+}
+
+export function Tool(content: PromptValue): PromptNode {
+  return Role("tool", content);
 }
 
 export function If(
@@ -191,6 +222,55 @@ export function Each<T>(
     }
 
     return output;
+  });
+}
+
+export function Join(
+  items: PromptValue | IterableOrFactory<PromptValue>,
+  separator: PromptValue = "\n",
+): PromptNode {
+  return createNode((context) => {
+    const separatorText = toText(separator, context);
+    const parts: string[] = [];
+
+    const resolved = typeof items === "function" ? items() : items;
+    if (isIterableValue(resolved)) {
+      for (const item of resolved) {
+        const text = toText(item, context);
+        if (text.trim()) {
+          parts.push(text);
+        }
+      }
+
+      return parts.join(separatorText);
+    }
+
+    for (const token of collectTokens(resolved, context)) {
+      if (token.text.trim()) {
+        parts.push(token.text);
+      }
+    }
+
+    return parts.join(separatorText);
+  });
+}
+
+export function Template(
+  strings: TemplateStringsArray,
+  ...values: PromptValue[]
+): PromptNode {
+  return createNode((context) => {
+    let text = "";
+
+    for (let i = 0; i < strings.length; i += 1) {
+      text += strings[i];
+
+      if (i < values.length) {
+        text += toText(values[i], context);
+      }
+    }
+
+    return text;
   });
 }
 
