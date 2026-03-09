@@ -35,14 +35,55 @@ const messages = p.toMessages();
 - `If(condition, whenTrue, whenFalse?)`: conditionally includes content.
 - `Each(items, mapper)`: transforms arrays/iterables into prompt parts.
 - `Join(items, separator?)`: joins iterable content into one composed segment.
-- `` Template`...${value}...`  ``: tagged template helper for inline composition.
+- ``Template`...${value}...` ``: tagged template helper for inline composition.
 - `Bracket(content, left?, right?)`: wraps content with markers like `()`, `[]`, or custom tokens.
 - `Prompt([...])`: composes all parts into one renderable prompt object.
+
+## Validation
+
+You can validate prompt inputs with built-in, zod-like schemas and keep prompt construction separate from validation.
+
+```ts
+import { validate, Prompt, Each, Join, System, schema } from "prompt-weave";
+
+const input = validate(
+  {
+    topic: schema.string().trim().nonempty(),
+    audience: schema.enum(["free", "pro"] as const),
+    maxBullets: schema.number().int().min(1).default(3),
+    constraints: schema
+      .array(schema.string().trim().nonempty())
+      .default(() => []),
+  },
+  {
+    topic: "refund policy",
+    audience: "pro",
+    constraints: ["Use bullets", "Stay concise"],
+  },
+);
+
+const prompt = Prompt([
+  System("You are a support assistant."),
+  `Topic: ${input.topic}`,
+  `Audience: ${input.audience}`,
+  `Limit: ${input.maxBullets} bullets`,
+  Join(
+    Each(input.constraints, (constraint) => `- ${constraint}`),
+    "\n",
+  ),
+]);
+
+const promptText = prompt.render();
+```
+
+If you want a reusable validated prompt factory, use `definePrompt(...)`.
 
 ### `render()` vs `toMessages()`
 
 - `render()` returns a single formatted string (good for plain text prompt APIs).
 - `toMessages()` returns structured role messages (good for chat-style APIs).
+- `toMessages()` has no options.
+- `toMessages()` uses the library's default normalization behavior: adjacent chunks with the same role are merged, and blank content is omitted.
 
 Example `toMessages()` shape:
 
@@ -95,8 +136,25 @@ Here are the tasks:
 - `If(condition, whenTrue, whenFalse?)` -> conditional branch in prompt tree
 - `Each(items, mapper)` -> map iterable items into prompt parts
 - `Join(items, separator?)` -> join mapped parts into a single segment
-- `` Template`...${value}...`  `` -> inline template interpolation helper
+- ``Template`...${value}...` `` -> inline template interpolation helper
 - `Bracket(content, left?, right?)` -> wraps prompt content with brackets/tokens
+
+### Validation API
+
+- `schema.string()`, `schema.number()`, `schema.boolean()` -> primitive validators
+- `schema.literal(value)` and `schema.enum([...])` -> literal/enum validation with inferred types
+- `schema.array(itemSchema)` and `schema.object(shape)` -> nested structured validation
+- String validators: `.trim()`, `.min()`, `.max()`, `.nonempty()`, `.regex()`, `.startsWith()`, `.endsWith()`, `.email()`, `.url()`
+- Number validators: `.min()`, `.max()`, `.int()`, `.positive()`, `.nonnegative()`, `.negative()`
+- Array validators: `.min()`, `.max()`, `.nonempty()`
+- `.optional()`, `.nullable()`, `.default(value)`, `.refine(check, message?)`, `.transform(map)` -> chainable schema helpers
+- `validate(shapeOrSchema, input)` -> parse once, then build a normal `Prompt(...)`
+- `safeValidate(shapeOrSchema, input)` -> ad-hoc validation without throwing
+- `definePrompt(shape, build)` or `definePrompt(schema, build)` -> validates input before building a prompt
+- `safeParse(value)` -> returns `{ success, data }` or `{ success, error }`
+- `parse(value)` -> throws `PromptValidationError` with path-aware issues when validation fails
+- `PromptValidationError` -> error class with `issues` for structured validation failures
+- `Infer<typeof someSchema>` / `InferShape<typeof someShape>` -> infer TypeScript types from schemas and schema shapes
 
 ### `render(options)`
 
@@ -107,6 +165,13 @@ Here are the tasks:
 - `roleLabelBrackets?: [string, string]` -> bracket pair around role labels (default `["[", "]"]`)
 - `roleLabelSuffix?: string` -> text between role label and message (default `" "`)
 - `wrapper?: [string, string]` -> wraps the entire rendered prompt
+
+### `toMessages()`
+
+- No options
+- Returns `PromptMessage[]`
+- Merges adjacent chunks with the same role into a single message
+- Trims empty content and omits blank messages
 
 ## More Examples
 
@@ -185,3 +250,59 @@ const prompt = Prompt([
   ),
 ]);
 ```
+
+### Reusable validated prompt factory
+
+```ts
+import { definePrompt, Prompt, Each, Join, System, schema } from "prompt-weave";
+
+const buildSupportPrompt = (input: {
+  topic: string;
+  audience: "free" | "pro";
+  maxBullets: number;
+  constraints: string[];
+}) =>
+  Prompt([
+    System("You are a support assistant."),
+    `Topic: ${input.topic}`,
+    `Audience: ${input.audience}`,
+    `Limit: ${input.maxBullets} bullets`,
+    Join(
+      Each(input.constraints, (constraint) => `- ${constraint}`),
+      "\n",
+    ),
+  ]);
+
+const supportPrompt = definePrompt(
+  {
+    topic: schema.string().trim().nonempty(),
+    audience: schema.enum(["free", "pro"] as const),
+    maxBullets: schema.number().int().min(1).default(3),
+    constraints: schema
+      .array(schema.string().trim().nonempty())
+      .default(() => []),
+  },
+  buildSupportPrompt,
+);
+
+const promptText = supportPrompt.render({
+  topic: "refund policy",
+  audience: "pro",
+  constraints: ["Use bullets", "Stay concise"],
+});
+
+const promptMessages = supportPrompt.toMessages({
+  topic: "refund policy",
+  audience: "free",
+});
+```
+
+## Changelog
+
+### 1.2.0
+
+- Added built-in validation helpers with schema-based type inference.
+- Added direct `validate()` and `safeValidate()` helpers for ad-hoc prompt inputs.
+- Added richer validators for strings, numbers, and arrays.
+- Added reusable validated prompt factories with `definePrompt()`.
+- Expanded README examples and validation API documentation.

@@ -35,9 +35,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "changeset publish",
+    "release": "npm publish",
+    "release:patch": "npm version patch && npm run release",
+    "release:minor": "npm version minor && npm run release",
+    "release:major": "npm version major && npm run release",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "keywords": [
@@ -49,7 +50,6 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@changesets/cli": "^2.30.0",
     "tsup": "^8.3.5",
     "typescript": "^5.8.2",
     "vitest": "^2.1.8"
